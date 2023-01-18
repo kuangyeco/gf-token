@@ -12,7 +12,6 @@ import (
 	"github.com/gogf/gf/v2/database/gredis"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
-	"github.com/gogf/gf/v2/util/grand"
 	"github.com/tiger1103/gfast-token/gftoken"
 	"testing"
 )
@@ -35,7 +34,7 @@ func test(t *testing.T) {
 	4、GenerateToken函数参数的key为用户唯一标识，必须且唯一
 	*/
 	gft := gftoken.NewGfToken(
-		gftoken.WithCacheKey("gfToken:"),
+		gftoken.WithCacheKey("gfToken_"),
 		gftoken.WithTimeout(60),
 		gftoken.WithMaxRefresh(50),
 		gftoken.WithMultiLogin(true),
@@ -48,7 +47,7 @@ func test(t *testing.T) {
 	s.Group("/", func(group *ghttp.RouterGroup) {
 		group.GET("/login", func(r *ghttp.Request) {
 			userId := r.GetQuery("id").String()
-			token, err := gft.GenerateToken(r.GetCtx(), gmd5.MustEncrypt(userId)+grand.Letters(8), User{
+			token, err := gft.GenerateToken(r.GetCtx(), gmd5.MustEncrypt(userId), User{
 				UserData: userId,
 				Data:     "myData",
 			})
@@ -69,7 +68,7 @@ func test(t *testing.T) {
 			}
 			r.Response.Write(data)
 		})
-		group.GET("/logout", func(r *ghttp.Request) {
+		group.GET("/loginOut", func(r *ghttp.Request) {
 			ctx := r.GetCtx()
 			err := gft.RemoveToken(ctx, gft.GetRequestToken(r))
 			if err != nil {

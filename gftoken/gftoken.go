@@ -10,9 +10,8 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/os/gcache"
-	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/gogf/gf/v2/util/grand"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt"
 	"time"
 )
 
@@ -39,8 +38,8 @@ type GfToken struct {
 	userJwt *JwtSign
 }
 
-// TokenData Token 数据
-type TokenData struct {
+//Token 数据
+type tokenData struct {
 	JwtToken string `json:"jwtToken"`
 	UuId     string `json:"uuId"`
 }
@@ -52,23 +51,18 @@ func (m *GfToken) diedLine() time.Time {
 
 // 生成token
 func (m *GfToken) GenerateToken(ctx context.Context, key string, data interface{}) (keys string, err error) {
-	if len(key) < 40 {
-		err = gerror.New("key length must more than 40")
-		return
-	}
 	var (
 		uuid   string
-		tData  *TokenData
+		tData  *tokenData
 		tokens string
 	)
-	// 支持多端重复登录，返回新token
+	// 支持多端重复登录，返回相同token
 	if m.MultiLogin {
 		tData, err = m.getCache(ctx, m.CacheKey+key)
 		if err != nil {
 			return
 		}
 		if tData != nil {
-			key = gstr.SubStr(key, 0, len(key)-16) + grand.Letters(16)
 			keys, uuid, err = m.EncryptToken(ctx, key, tData.UuId)
 			m.doRefresh(ctx, key, tData) //刷新token
 			return
@@ -76,9 +70,9 @@ func (m *GfToken) GenerateToken(ctx context.Context, key string, data interface{
 	}
 	tokens, err = m.userJwt.CreateToken(CustomClaims{
 		data,
-		jwt.RegisteredClaims{
-			NotBefore: jwt.NewNumericDate(time.Unix(time.Now().Unix()-10, 0)), // 生效开始时间
-			ExpiresAt: jwt.NewNumericDate(m.diedLine()),                       // 失效截止时间
+		jwt.StandardClaims{
+			NotBefore: time.Now().Unix() - 10, // 生效开始时间
+			ExpiresAt: m.diedLine().Unix(),    // 失效截止时间
 		},
 	})
 	if err != nil {
@@ -88,7 +82,7 @@ func (m *GfToken) GenerateToken(ctx context.Context, key string, data interface{
 	if err != nil {
 		return
 	}
-	err = m.setCache(ctx, m.CacheKey+key, TokenData{
+	err = m.setCache(ctx, m.CacheKey+key, tokenData{
 		JwtToken: tokens,
 		UuId:     uuid,
 	})
@@ -113,7 +107,7 @@ func (m *GfToken) ParseToken(r *ghttp.Request) (*CustomClaims, error) {
 
 // 检查缓存的token是否有效且自动刷新缓存token
 func (m *GfToken) IsEffective(ctx context.Context, token string) bool {
-	cacheToken, key, err := m.GetTokenData(ctx, token)
+	cacheToken, key, err := m.getTokenData(ctx, token)
 	if err != nil {
 		g.Log().Info(ctx, err)
 		return false
@@ -129,7 +123,7 @@ func (m *GfToken) IsEffective(ctx context.Context, token string) bool {
 	return false
 }
 
-func (m *GfToken) doRefresh(ctx context.Context, key string, cacheToken *TokenData) bool {
+func (m *GfToken) doRefresh(ctx context.Context, key string, cacheToken *tokenData) bool {
 	if newToken, err := m.RefreshToken(cacheToken.JwtToken); err == nil {
 		cacheToken.JwtToken = newToken
 		err = m.setCache(ctx, m.CacheKey+key, cacheToken)
@@ -141,7 +135,7 @@ func (m *GfToken) doRefresh(ctx context.Context, key string, cacheToken *TokenDa
 	return true
 }
 
-func (m *GfToken) GetTokenData(ctx context.Context, token string) (tData *TokenData, key string, err error) {
+func (m *GfToken) getTokenData(ctx context.Context, token string) (tData *tokenData, key string, err error) {
 	var uuid string
 	key, uuid, err = m.DecryptToken(ctx, token)
 	if err != nil {
@@ -157,7 +151,7 @@ func (m *GfToken) GetTokenData(ctx context.Context, token string) (tData *TokenD
 // 检查token是否过期 (过期时间 = 超时时间 + 缓存刷新时间)
 func (m *GfToken) IsNotExpired(token string) (*CustomClaims, int) {
 	if customClaims, err := m.userJwt.ParseToken(token); err == nil {
-		if time.Now().Unix()-customClaims.ExpiresAt.Unix() < 0 {
+		if time.Now().Unix()-customClaims.ExpiresAt < 0 {
 			// token有效
 			return customClaims, JwtTokenOK
 		} else {
@@ -185,7 +179,7 @@ func (m *GfToken) IsRefresh(token string) bool {
 	}
 	if customClaims, err := m.userJwt.ParseToken(token); err == nil {
 		now := time.Now().Unix()
-		if now < customClaims.ExpiresAt.Unix() && now > (customClaims.ExpiresAt.Unix()-m.MaxRefresh) {
+		if now < customClaims.ExpiresAt && now > (customClaims.ExpiresAt-m.MaxRefresh) {
 			return true
 		}
 	}
@@ -241,7 +235,7 @@ func (m *GfToken) DecryptToken(ctx context.Context, token string) (DecryptStr, u
 // RemoveToken 删除token
 func (m *GfToken) RemoveToken(ctx context.Context, token string) (err error) {
 	var key string
-	_, key, err = m.GetTokenData(ctx, token)
+	_, key, err = m.getTokenData(ctx, token)
 	if err != nil {
 		return
 	}

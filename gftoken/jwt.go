@@ -2,8 +2,7 @@ package gftoken
 
 import (
 	"errors"
-	"github.com/golang-jwt/jwt/v4"
-	"time"
+	"github.com/golang-jwt/jwt"
 )
 
 // 使用工厂创建一个 JWT 结构体
@@ -60,7 +59,7 @@ labelHere:
 // 更新token有效期
 func (j *JwtSign) RefreshToken(tokenString string, extraAddSeconds int64) (string, error) {
 	if customClaims, err := j.ParseToken(tokenString); err == nil {
-		customClaims.ExpiresAt = jwt.NewNumericDate(time.Unix(extraAddSeconds, 0))
+		customClaims.ExpiresAt = extraAddSeconds
 		return j.CreateToken(*customClaims)
 	} else {
 		return "", err
