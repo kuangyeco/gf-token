@@ -1,4 +1,4 @@
-# gfast-token
+# gf-token
 基于GoFrame框架的token插件，通过服务端验证方式实现token认证
 
 ## Requirements
