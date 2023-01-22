@@ -1,4 +1,4 @@
-module github.com/kuangyeco/gfast-token
+module github.com/kuangyeco/gf-token
 
 go 1.16
 
