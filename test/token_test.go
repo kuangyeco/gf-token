@@ -1,10 +1,3 @@
-/*
-* @desc:功能测试
-* @company:云南奇讯科技有限公司
-* @Author: yixiaohu
-* @Date:   2022/2/28 10:09
- */
-
 package test
 
 import (
@@ -12,7 +5,7 @@ import (
 	"github.com/gogf/gf/v2/database/gredis"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
-	"github.com/tiger1103/gfast-token/gftoken"
+	"github.com/kuangyeco/gfast-token/gftoken"
 	"testing"
 )
 
